@@ -1,0 +1,319 @@
+# ══════════════════════════════════════════════════════════════════════════════
+#  CreditRisk AI — Kubernetes Deployment (Phase 6)
+#  Components: API Deployment · Service · HPA · ConfigMap · Ingress
+# ══════════════════════════════════════════════════════════════════════════════
+
+---
+# ── Namespace ──────────────────────────────────────────────────────────────────
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: creditrisk-ai
+  labels:
+    app: creditrisk-ai
+    env: production
+
+---
+# ── ConfigMap ─────────────────────────────────────────────────────────────────
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: creditrisk-config
+  namespace: creditrisk-ai
+data:
+  PORT: "8000"
+  WORKERS: "4"
+  LOG_LEVEL: "info"
+  MODEL_VERSION: "xgboost_v3_2"
+  SCORE_MIGRATION_ALERT_THRESHOLD_BANDS: "5"  # Alert if PD migrates > 5 bands
+  PSI_WARNING_THRESHOLD: "0.05"
+  PSI_CRITICAL_THRESHOLD: "0.10"
+  RETRAIN_CRON_SCHEDULE: "0 0 1 * *"          # Monthly retraining on 1st
+  CHAMPION_CHALLENGER_EVALUATION_DAYS: "30"
+  EVIDENTLY_REPORT_FREQUENCY_HOURS: "6"
+
+---
+# ── Secret (API Keys / DB credentials) ────────────────────────────────────────
+apiVersion: v1
+kind: Secret
+metadata:
+  name: creditrisk-secrets
+  namespace: creditrisk-ai
+type: Opaque
+stringData:
+  DATABASE_URL: "postgresql://creditrisk:CHANGEME@postgres-service:5432/creditrisk_db"
+  REDIS_URL: "redis://redis-service:6379/0"
+  FEATURE_STORE_API_KEY: "CHANGEME"
+  FIDDLER_API_KEY: "CHANGEME"
+  ALERT_WEBHOOK_URL: "https://example.com/slack-webhook-placeholder"
+
+---
+# ── PD Scoring API Deployment ──────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pd-scoring-api
+  namespace: creditrisk-ai
+  labels:
+    app: pd-scoring-api
+    version: "3.2.0"
+    phase: "production"
+spec:
+  replicas: 3                    # 3 replicas for HA
+  selector:
+    matchLabels:
+      app: pd-scoring-api
+  strategy:
+    type: RollingUpdate          # Zero-downtime Blue-Green deployment
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: pd-scoring-api
+        version: "3.2.0"
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+        - name: pd-scoring-api
+          image: creditrisk/pd-scoring-api:3.2.0
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+              name: http
+          envFrom:
+            - configMapRef:
+                name: creditrisk-config
+            - secretRef:
+                name: creditrisk-secrets
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "2000m"
+              memory: "4Gi"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 30
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          volumeMounts:
+            - name: model-storage
+              mountPath: /app/models
+              readOnly: true
+            - name: evidently-reports
+              mountPath: /app/evidently_reports
+      volumes:
+        - name: model-storage
+          persistentVolumeClaim:
+            claimName: model-pvc
+        - name: evidently-reports
+          emptyDir: {}
+      terminationGracePeriodSeconds: 30
+
+---
+# ── API Service ────────────────────────────────────────────────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: pd-scoring-service
+  namespace: creditrisk-ai
+  labels:
+    app: pd-scoring-api
+spec:
+  type: ClusterIP
+  selector:
+    app: pd-scoring-api
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8000
+      protocol: TCP
+
+---
+# ── Horizontal Pod Autoscaler ─────────────────────────────────────────────────
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: pd-scoring-hpa
+  namespace: creditrisk-ai
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: pd-scoring-api
+  minReplicas: 3
+  maxReplicas: 20
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+
+---
+# ── Model Monitoring Sidecar (Evidently AI) ────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: evidently-monitor
+  namespace: creditrisk-ai
+  labels:
+    app: evidently-monitor
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: evidently-monitor
+  template:
+    metadata:
+      labels:
+        app: evidently-monitor
+    spec:
+      containers:
+        - name: evidently-monitor
+          image: evidentlyai/evidently:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: MONITORING_INTERVAL_HOURS
+              value: "6"
+            - name: PSI_CRITICAL_THRESHOLD
+              value: "0.10"
+            - name: SCORE_MIGRATION_ALERT_BANDS
+              value: "5"           # ← Triggers alert if borrower migrates > 5 bands
+            - name: ALERT_WEBHOOK
+              valueFrom:
+                secretKeyRef:
+                  name: creditrisk-secrets
+                  key: ALERT_WEBHOOK_URL
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "512Mi"
+            limits:
+              cpu: "500m"
+              memory: "1Gi"
+
+---
+# ── Monthly Retraining CronJob ─────────────────────────────────────────────────
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: monthly-model-retraining
+  namespace: creditrisk-ai
+  labels:
+    app: model-retraining
+    schedule: monthly
+spec:
+  schedule: "0 0 1 * *"          # 1st of every month at midnight UTC
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 6
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        metadata:
+          labels:
+            app: model-retraining
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: retraining-job
+              image: creditrisk/model-trainer:latest
+              command:
+                - python
+                - retrain_pipeline.py
+                - --trigger=scheduled
+                - --model=xgboost
+                - --eval-auroc-threshold=0.75
+                - --eval-ks-threshold=0.35
+                - --champion-challenger-days=30
+                - --auto-promote-if-auroc-gain=0.005
+              env:
+                - name: DATABASE_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: creditrisk-secrets
+                      key: DATABASE_URL
+              resources:
+                requests:
+                  cpu: "2000m"
+                  memory: "8Gi"
+                limits:
+                  cpu: "8000m"
+                  memory: "32Gi"
+              volumeMounts:
+                - name: model-storage
+                  mountPath: /app/models
+          volumes:
+            - name: model-storage
+              persistentVolumeClaim:
+                claimName: model-pvc
+
+---
+# ── Ingress (NGINX) ────────────────────────────────────────────────────────────
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: creditrisk-ingress
+  namespace: creditrisk-ai
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/rate-limit-rps: "100"
+spec:
+  rules:
+    - host: api.creditrisk.ai
+      http:
+        paths:
+          - path: /v1
+            pathType: Prefix
+            backend:
+              service:
+                name: pd-scoring-service
+                port:
+                  number: 80
+          - path: /health
+            pathType: Exact
+            backend:
+              service:
+                name: pd-scoring-service
+                port:
+                  number: 80
+
+---
+# ── PersistentVolumeClaim (Model Storage) ──────────────────────────────────────
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: model-pvc
+  namespace: creditrisk-ai
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: azure-file   # or aws-efs / gcp-filestore
+  resources:
+    requests:
+      storage: 50Gi

@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>CreditRisk AI — Solution Approach</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 40px 20px;
+    }
+    h1, h2, h3 {
+      color: #0b1f35;
+      font-weight: 700;
+    }
+    h1 {
+      border-bottom: 2px solid #1a3a5c;
+      padding-bottom: 10px;
+      margin-top: 0;
+    }
+    h2 {
+      border-bottom: 1px solid #ddd;
+      padding-bottom: 6px;
+      margin-top: 30px;
+    }
+    pre {
+      background: #f4f6f8;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 15px;
+      overflow-x: auto;
+      font-family: "Courier New", Courier, monospace;
+      font-size: 13px;
+      line-height: 1.4;
+    }
+    ul {
+      padding-left: 20px;
+    }
+    li {
+      margin-bottom: 8px;
+    }
+    hr {
+      border: 0;
+      border-top: 1px solid #ddd;
+      margin: 30px 0;
+    }
+    @page {
+      size: A4;
+      margin: 20mm;
+    }
+    @media print {
+      body {
+        padding: 0;
+        color: #000;
+      }
+      pre {
+        background: #fafafa;
+        border: 1px solid #ccc;
+        page-break-inside: avoid;
+      }
+      h2 {
+        page-break-after: avoid;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>CreditRisk AI — Solution Approach</h1>
+  <h3>Defaulter Risk Management &amp; Visual Telemetry</h3>
+  <hr>
+
+  <h2>1. Executive Summary</h2>
+  <p><strong>CreditRisk AI</strong> is a dynamic web application designed to optimize portfolio risk management for financial institutions. By consolidating alternate data streams, geospatial clusters, and persistent contact histories into a single reactive interface, the platform empowers risk officers to take quick and informed actions against NPAs (non-performing assets).</p>
+
+  <h2>2. Problem Statement</h2>
+  <p>Standard risk management workflows face several challenges:</p>
+  <ul>
+    <li><strong>Static &amp; Delayed Data:</strong> Risk histories are locked in static spreadsheets, causing delayed actions.</li>
+    <li><strong>Interface Lockups:</strong> Network latency on database writes freezes the UI, decreasing worker efficiency.</li>
+    <li><strong>Lack of Spatial Context:</strong> Visualizing risk density geographically is difficult with standard tables.</li>
+  </ul>
+
+  <h2>3. Proposed Architecture</h2>
+  <pre>
+┌────────────────────────────────────────────────────────┐
+│                      VITE FRONTEND                     │
+│  (React, Framer Motion, HTML5 Canvas, Alternate Data)  │
+└───────────┬───────────────────────────────┬────────────┘
+            │                               │
+    (REST API Calls)            (Real-Time Firestore Sync)
+            ▼                               ▼
+┌───────────────────────┐       ┌────────────────────────┐
+│  FASTAPI PYTHON BACKEND│       │   FIREBASE FIRESTORE   │
+│  (ML Models, PSI/drift│       │  (Defaulter Profiles,  │
+│    telemetry, health) │       │   Contact Timelines)   │
+└───────────────────────┘       └────────────────────────┘</pre>
+  <p>The system comprises three core layers: a React client layer for dynamic telemetry, a serverless Firebase layer for persistent database syncing, and a Python FastAPI backend for statistical metrics.</p>
+
+  <h2>4. Core Solutions Implemented</h2>
+  
+  <h3>📡 Real-Time Defaulter Intelligence Portal</h3>
+  <ul>
+    <li><strong>Asynchronous, Non-Blocking Saves:</strong> Contact logging form submissions trigger Firestore writes in the background. The user interface updates instantly, bypassing network latency.</li>
+    <li><strong>Optimistic Deduplication:</strong> Uses client-side generated UUIDs to resolve latency compensation, merging local states and remote updates with zero duplication.</li>
+    <li><strong>Named Collections:</strong> Automatically records documents under the borrower's name in Firestore, enhancing database readability.</li>
+  </ul>
+
+  <h3>🌐 3D Defaulter Risk Globe</h3>
+  <ul>
+    <li><strong>Interactive Geometry:</strong> Renders a fully responsive 3D globe using a high-performance Canvas 2D engine.</li>
+    <li><strong>Risk Contagion Bezier Arcs:</strong> Selecting a city cluster draws curved Bezier lines with flowing particles to visualize risk contagion paths.</li>
+    <li><strong>Search &amp; Focus:</strong> Users can search for cities, rotating the globe automatically to bring the selected point to the front.</li>
+    <li><strong>Visual Skins:</strong> Offers live switches between three visual skins (Blueprint, Magma, and Matrix).</li>
+  </ul>
+
+  <h2>5. Security &amp; Configuration</h2>
+  <ul>
+    <li><strong>Environment Variables:</strong> Real Firebase credentials are loaded via Vite-prefixed variables from a local <code>.env</code> file.</li>
+    <li><strong>Git Safety:</strong> The <code>.env</code> file is hidden using <code>.gitignore</code>, ensuring sensitive API keys are never leaked to public repositories.</li>
+  </ul>
+</body>
+</html>

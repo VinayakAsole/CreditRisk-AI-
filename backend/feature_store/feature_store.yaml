@@ -1,0 +1,9 @@
+project: creditrisk_features
+registry: data/registry.db
+provider: local
+online_store:
+  type: redis
+  connection_string: localhost:6379,ssl=false,database=0
+offline_store:
+  type: file
+  file_type: parquet

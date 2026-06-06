@@ -1,0 +1,57 @@
+{
+    "pipeline_metadata": {
+        "model_version": "XGBoost-v3.2-Ensemble",
+        "run_timestamp": "2026-06-03T14:27:16.883207Z",
+        "sample_size": 1000,
+        "calibrator_type": "Platt Scaling (Sigmoid Fit)",
+        "platt_coefficients": {
+            "A": 0.9167802437760805,
+            "B": -1.0489966660618617
+        }
+    },
+    "feature_importance": [
+        {
+            "feature": "Telecom Regularity",
+            "relative_importance": 0.38
+        },
+        {
+            "feature": "Utility DPD History",
+            "relative_importance": 0.28
+        },
+        {
+            "feature": "E-Commerce Spend Ratio",
+            "relative_importance": 0.21
+        },
+        {
+            "feature": "GST Filing Delay",
+            "relative_importance": 0.13
+        }
+    ],
+    "calibration_bins": [
+        {
+            "bin": "0.0-0.2",
+            "avg_predicted_pd": 0.089,
+            "observed_default_rate": 0.085
+        },
+        {
+            "bin": "0.2-0.4",
+            "avg_predicted_pd": 0.284,
+            "observed_default_rate": 0.29
+        },
+        {
+            "bin": "0.4-0.6",
+            "avg_predicted_pd": 0.492,
+            "observed_default_rate": 0.481
+        },
+        {
+            "bin": "0.6-0.8",
+            "avg_predicted_pd": 0.697,
+            "observed_default_rate": 0.702
+        },
+        {
+            "bin": "0.8-1.0",
+            "avg_predicted_pd": 0.884,
+            "observed_default_rate": 0.891
+        }
+    ]
+}
