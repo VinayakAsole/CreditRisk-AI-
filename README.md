@@ -11,8 +11,23 @@ An advanced, production-grade FinTech risk observatory dashboard designed to sco
 
 ---
 
-## 📸 Dashboard Interface
-![CreditRisk AI Dashboard Preview](./public/dashboard_preview.png)
+## 📸 Real Project Screenshots
+
+### 📊 1. Core Analytics Dashboard
+*Overview of portfolio metrics, active loans, default trends, and real-time alternate data health.*
+![Dashboard Page](./public/screenshot_dashboard.png)
+
+### 📡 2. Real-Time Defaulter Intelligence Portal
+*Search borrowers by ID, PAN, phone, or location and log contact timelines (Calls, Emails, Notices) backed by Firestore.*
+![Defaulter Portal Page](./public/screenshot_portal.png)
+
+### 🌐 3. Interactive 3D Defaulter Risk Globe
+*Spatial visualization of defaulters, risk density color skins (Blueprint, Magma, Matrix), Bezier contagion flow lines, and borrower cluster inspect cards.*
+![3D Risk Globe Page](./public/screenshot_globe.png)
+
+### 🤖 4. MLOps Monitoring Observatory
+*Observability panel tracking Population Stability Index (PSI) drift logs, retrain policies, and critical alert incident history.*
+![MLOps observatory Page](./public/screenshot_monitoring.png)
 
 ---
 
@@ -31,7 +46,7 @@ An advanced, production-grade FinTech risk observatory dashboard designed to sco
 * **Optimistic Deduplication**: Leverages client-generated event UUIDs to reconcile latency compensation, maintaining single, clean list entries.
 * **Search & Filters**: Search directory by Name, PAN, Loan ID, or phone, with risk band filtering (Critical, High, Moderate, Low).
 
-### 🤖 3. MLOps Monitoring observatory
+### 🤖 3. MLOps Monitoring Observatory
 * **Model Drift Telemetry**: Tracks live Population Stability Index (PSI) and feature drift logs (e.g. e-commerce spends, BNPL usage).
 * **Autopilot Retraining**: Renders PSI warning and critical limits (e.g., auto-retrain triggers at PSI > 0.10) with policy configurations.
 * **Incident History**: Incident table showing incident timestamps, severity levels, and resolution status.
@@ -73,7 +88,7 @@ npm install
 ```
 
 ### 2. Environment Configuration
-Create a `.env` file in the root folder (see [`.env.example`](file:///c:/Users/LENOVO/Desktop/project%20for%20git/h/h2/.env.example)) and fill in your Firebase credentials:
+Create a `.env` file in the root folder (see [`.env.example`](file:///c:/Users/LENOVO/Desktop/project for git/h/h2/.env.example)) and fill in your Firebase credentials:
 ```env
 VITE_FIREBASE_API_KEY=your_key
 VITE_FIREBASE_AUTH_DOMAIN=your_domain
